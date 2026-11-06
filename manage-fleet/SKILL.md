@@ -17,12 +17,12 @@ User on both Linux boxes is `niilohlin`; passwordless `sudo -n` works.
 
 ## Rules
 
-1. Use normal `ssh` (aliases in `~/.ssh/config`). Never `tailscale ssh`. Hostnames resolve via Tailscale MagicDNS, so Tailscale must be connected on the Mac.
+1. Use normal `ssh` via the aliases `omarchy` / `dellbox` in `~/.ssh/config` (OpenSSH on port 2222; port 22 on the tailnet IP is Tailscale SSH). Hostnames resolve via Tailscale MagicDNS, so Tailscale must be connected on the Mac. Only if plain ssh fails, fall back to `tailscale ssh niilohlin@niils-omarchy` / `niilohlin@dellburk` and tell the user.
 2. Always pass `-o BatchMode=yes -o ConnectTimeout=5` so nothing hangs on a prompt.
 3. Translate the task per OS: Homebrew on the Mac, `pacman`/`yay` on the Linux boxes. Same intent, native command.
 4. Run the two Linux boxes in parallel (`for h in omarchy dellbox; do ...; done` or parallel tool calls), and the Mac locally.
 5. For non-interactive package installs use `sudo -n pacman -S --needed --noconfirm <pkg>` / `yay -S --needed --noconfirm <pkg>`.
-6. Before anything destructive (deleting data, reboots, changing sshd/firewall/tailscale settings), confirm with the user. Never run `tailscale set --ssh=true` or disable `sshd`/the `tailscale0` port-22 ufw rule: that cuts off access.
+6. Before anything destructive (deleting data, reboots, changing sshd/firewall/tailscale settings), confirm with the user. Never disable `sshd`, Tailscale SSH (`tailscale set --ssh=false`), or the `tailscale0` ufw rules for ports 22/2222: they are the access paths (OpenSSH primary, Tailscale SSH backup).
 7. If a box is unreachable, say so and continue with the others; don't silently skip it.
 
 ## Template
