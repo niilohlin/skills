@@ -1,6 +1,6 @@
 ---
 name: manage-fleet
-description: Run a task on every machine in the user's fleet (this Mac, niils-omarchy, dellburk/dellbox) over plain OpenSSH. Use when the user says "manage fleet", "/manage-fleet", "on all my machines", "on every computer", "across the fleet", or asks to install/update/check/configure something everywhere.
+description: Use when the user says "manage fleet", "/manage-fleet", "on all my machines", "on every computer", "across the fleet"
 ---
 
 # Manage Fleet
