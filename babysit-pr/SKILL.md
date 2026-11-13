@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Use when asked to babysit a PR.
+description: Used automatically after making a new PR.
 ---
 
 # Babysit PR

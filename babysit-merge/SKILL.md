@@ -5,8 +5,7 @@ description: Use when the user says "babysit merge", "merge and watch the deploy
 
 Merge the PR for the current branch, if it needs to be updated first, then
 merge in the latest base, fix any eventual merge conflicts first. Then
-watch it deploy, confirm nothing broke. Revert on trouble, settle the
-thread when it's clean.
+watch it deploy, confirm nothing broke. Revert on trouble.
 
 Work out how this repo deploys: read `.github/workflows/` (look for jobs
 triggered on push to the base branch), and any `deploy`/`helm`/`argocd`
@@ -20,3 +19,6 @@ Also look at any error tracker or alerts the repo/README points to, and any
 smoke or e2e checks the repo has for deployed environments.
 
 Never force-push, never bypass branch protection or required reviews.
+
+Settle the t3code thread when everything is merged and no issues have been
+detected unless the user specifies otherwise
