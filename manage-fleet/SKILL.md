@@ -1,6 +1,6 @@
 ---
 name: manage-fleet
-description: Use when the user says "manage fleet", "/manage-fleet", "on all my machines", "on every computer", "across the fleet"
+description: Use when the user says "promulgate this", "/manage-fleet", "on all my machines", "on every computer", "across the fleet"
 ---
 
 # Manage Fleet

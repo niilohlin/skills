@@ -8,7 +8,7 @@ description: Clears Dependabot PRs, used when called "/babysit-dependabot".
 1. Judge the risk
 2. Get it green - update base, fix merge conflicts, fix CI etc.
 3. Validate (only if judged to be risky)
-4. Approve
+4. Approve (any comments, sign with -- <your model>)
 5. Merge
 6. Monitor: first check in ArgoCD that the deploy succeeded, then for 10 minutes
    check the logs through gcloud and the alerts channels in Slack. If everything
