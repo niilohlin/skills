@@ -22,3 +22,5 @@ Never force-push, never bypass branch protection or required reviews.
 
 Settle the t3code thread when everything is merged and no issues have been
 detected unless the user specifies otherwise
+
+If a linear issue is associated with the issue then change its status to 'done'
