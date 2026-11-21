@@ -13,6 +13,7 @@ description: Clears Dependabot PRs, used when called "/babysit-dependabot".
 6. Monitor: first check in ArgoCD that the deploy succeeded, then for 10 minutes
    check the logs through gcloud and the alerts channels in Slack. If everything
    is green and the logs look normal, continue; else make a revert PR and stop.
+   Use your harness' builtin watch tool to monitor the gh status
 7. Go back to step 1 with the next PR
 8. list each PR with its outcome
 

@@ -15,7 +15,10 @@ Check out its head branch before you change anything. If no PR exists, create on
 
 Run every step on each pass, then wait for new CI or review activity and start again.
 
-1. Update to the latest base
+1. Update to the latest base only when the PR has merge conflicts or a CI
+   failure that master already fixed. Don't merge master in just because it
+   moved: each merge re-runs CI and Greptile. babysit-merge updates the branch
+   once, right before merging.
 2. CI - wait for it to be all green or fix the failing checks.
 3. Read everything the Greptile posted since your last pass.
 For each comment from an automated reviewer (coderabbitai, greptile-apps, ...):
@@ -29,15 +32,18 @@ Don't reply to the same comment twice, and don't argue in circles. If the
 reviewer pushes back on a point you already answered and you still disagree,
 leave it for the human (see Stop).
 
-Record the reviewer's latest score. Greptile, for example, posts a
-"Confidence Score: N/5" line.
+Record the reviewer's latest score. For Greptile run
+`~/skills/babysit-pr/greptile-status.sh <pr>`: it prints the score, impact and
+every unresolved Greptile thread as plain text. Don't scrape the HTML comment
+yourself.
 
 4. Wait, then repeat - If your harness has a PR-watch or notification tool, use it. Otherwise poll
 
 ## Stop
 
 - **Done:** CI is all green, the score is 5/5 (or the bot approved with nothing
-  actionable left), and the branch is up to date. Report the PR URL, what you
+  actionable left), and there are no merge conflicts. Being behind master is
+  fine. Report the PR URL, what you
   fixed, and what you rebutted.
 - **Hand back to the user** when: the same CI failure survives 3 fix attempts;
   a fix needs a product or design decision; you need secrets or permissions you

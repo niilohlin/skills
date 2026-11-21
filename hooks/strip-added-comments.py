@@ -7,8 +7,9 @@
 
 Pairs with snapshot-edited-file.sh, which stores each touched file's pre-edit
 content under ~/.claude/comment-stripper/<session>/. Here we diff old vs new,
-parse the new file with tree-sitter, and remove only those comment nodes that
-sit entirely inside lines the diff marks as added. Comments that were already in
+parse the new file with tree-sitter, and remove every comment block (one comment
+node, or consecutive standalone comment lines) that touches a line the diff marks
+as added, so an edited doc comment goes entirely. Comments that were already in
 the file survive, as do load-bearing ones (linter pragmas, build tags, licenses).
 
 Edits made through the shell (python heredocs, sed -i) never pass the snapshot
@@ -194,9 +195,11 @@ def strip_file(path: Path, old_text: str, parser_for, only_rows: set[int] | None
     fresh = added_rows(old_text, new_text)
     if only_rows is not None:
         fresh &= only_rows
+    pep_rows: set[int] = set()
     for block in PEP723_RE.finditer(new_text):
         first = new_text.count("\n", 0, block.start())
-        fresh -= set(range(first, first + block.group().count("\n") + 1))
+        pep_rows |= set(range(first, first + block.group().count("\n") + 1))
+    fresh -= pep_rows
     if not fresh:
         return 0
     # Editing a line that already carried a comment makes difflib call that row
@@ -214,25 +217,51 @@ def strip_file(path: Path, old_text: str, parser_for, only_rows: set[int] | None
     edits: dict[int, list[tuple[int, int]]] = {}
     removed = 0
 
-    for node in comment_nodes(tree.root_node):
+    def is_standalone(node) -> bool:
         r0, r1 = node.start_point[0], node.end_point[0]
-        if r1 >= len(lines):
-            continue
-        if any(r not in fresh for r in range(r0, r1 + 1)):
-            continue
-        text = src[node.start_byte:node.end_byte].decode("utf-8", "replace")
-        if KEEP_RE.search(text):
-            continue
-        key = normalize(text)
-        if preexisting[key]:
-            preexisting[key] -= 1
-            continue
-
         head = src[line_start[r0]:node.start_byte]
         tail_end = line_start[r1] + len(lines[r1].encode("utf-8"))
-        tail = src[node.end_byte:tail_end]
-        standalone = head.strip() == b"" and tail.strip() == b""
+        return head.strip() == b"" and src[node.end_byte:tail_end].strip() == b""
 
+    blocks: list[list[tuple[object, bool]]] = []
+    for node in sorted(comment_nodes(tree.root_node), key=lambda n: n.start_byte):
+        if node.end_point[0] >= len(lines) or node.start_point[0] in pep_rows:
+            continue
+        alone = is_standalone(node)
+        prev = blocks[-1][-1] if blocks else None
+        if alone and prev and prev[1] and node.start_point[0] == prev[0].end_point[0] + 1:
+            blocks[-1].append((node, alone))
+        else:
+            blocks.append([(node, alone)])
+
+    targets: list[tuple[object, bool]] = []
+    for block in blocks:
+        rows = {r for n, _ in block for r in range(n.start_point[0], n.end_point[0] + 1)}
+        if not rows & fresh:
+            continue
+        texts = {
+            id(n): src[n.start_byte:n.end_byte].decode("utf-8", "replace") for n, _ in block
+        }
+        members = [(n, a) for n, a in block if not KEEP_RE.search(texts[id(n)])]
+        if not members:
+            continue
+        if len(members) < len(block):
+            for n, a in members:
+                key = normalize(texts[id(n)])
+                if all(r in fresh for r in range(n.start_point[0], n.end_point[0] + 1)):
+                    if preexisting[key]:
+                        preexisting[key] -= 1
+                    else:
+                        targets.append((n, a))
+            continue
+        keys = Counter(normalize(texts[id(n)]) for n, _ in members)
+        if all(preexisting[k] >= c for k, c in keys.items()):
+            preexisting.subtract(keys)
+            continue
+        targets.extend(members)
+
+    for node, standalone in targets:
+        r0, r1 = node.start_point[0], node.end_point[0]
         if standalone:
             drop_rows.update(range(r0, r1 + 1))
             removed += 1

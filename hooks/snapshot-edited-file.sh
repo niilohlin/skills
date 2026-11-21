@@ -30,9 +30,7 @@ if [ "$tool" = Bash ]; then
 
   if printf '%s' "$cmd" | grep -qE '\b(git push|gh pr create)\b' &&
     ! printf '%s' "$cmd" | grep -q 'CLAUDE_KEEP_COMMENTS=1'; then
-    export PATH="/opt/homebrew/bin:$PATH"
-    command -v uv >/dev/null 2>&1 || exit 0
-    printf '%s' "$payload" | uv run --quiet --script "$(dirname "$0")/strip-added-comments.py" --gate
+    printf '%s' "$payload" | "$(dirname "$0")/run-stripper.sh" --gate
     exit $?
   fi
   exit 0
@@ -42,7 +40,7 @@ fp=$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty')
 
 [ -n "$fp" ] || exit 0
 
-key=$(printf '%s' "$fp" | shasum -a 256 | cut -d' ' -f1)
+key=$(printf '%s' "$fp" | cksum | cut -d' ' -f1)
 [ -e "$dir/$key.path" ] && exit 0
 
 printf '%s' "$fp" >"$dir/$key.path"

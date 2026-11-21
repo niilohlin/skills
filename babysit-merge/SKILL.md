@@ -3,9 +3,15 @@ name: babysit-merge
 description: Use when the user says "babysit merge", "merge and watch the deploy" or "/babysit-merge".
 ---
 
-Merge the PR for the current branch, if it needs to be updated first, then
-merge in the latest base, fix any eventual merge conflicts first. Then
-watch it deploy, confirm nothing broke. Revert on trouble.
+Merge the PR for the current branch, then watch it deploy, confirm nothing
+broke. Revert on trouble.
+
+To merge: if the branch is behind the base (visa requires branches to be up to
+date), merge the latest base in once and push, fixing any conflicts. Then
+queue the merge with `gh pr merge <pr> --auto --merge` (use the repo's usual
+merge method) and watch the PR with `watch_pull_request` until it merges. If
+master moves again before it merges, update once more; don't loop on it by
+hand.
 
 Work out how this repo deploys: read `.github/workflows/` (look for jobs
 triggered on push to the base branch), and any `deploy`/`helm`/`argocd`
@@ -19,6 +25,15 @@ Also look at any error tracker or alerts the repo/README points to, and any
 smoke or e2e checks the repo has for deployed environments.
 
 Never force-push, never bypass branch protection or required reviews.
+
+## Watching
+
+Never tell the user you are watching, waiting or monitoring unless something
+is actually registered to wake you: a PR watch (`watch_pull_request`), a
+`Monitor`, or a background Bash task whose ID the tool returned. Name it when
+you say it ("watching via background task bxyz123"). Pass that exact returned
+ID to `t3_background_wait`; never a guessed or old one. If nothing is
+registered, say what you'll check and end the turn instead.
 
 Settle the t3code thread when everything is merged and no issues have been
 detected unless the user specifies otherwise

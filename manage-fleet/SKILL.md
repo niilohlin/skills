@@ -1,6 +1,6 @@
 ---
 name: manage-fleet
-description: Use when the user says "promulgate this", "/manage-fleet", "on all my machines", "on every computer", "across the fleet"
+description: Use when the user says "promulgate this", "/manage-fleet", "on all my machines", "on every computer", "across the fleet", "my other machines", or asks to search/find threads across machines ("search my threads", "threads in my fleet", "I made a thread a while ago").
 ---
 
 # Manage Fleet
@@ -13,9 +13,21 @@ Do the requested task on **all three** machines unless the user names a subset.
 | `omarchy` | niils-omarchy | `niilohlin` | Omarchy (Arch Linux, pacman/yay) |
 | `dellbox` | dellburk | `niilohlin` | Omarchy (Arch Linux, pacman/yay) |
 
-This skill may run on **any** of the three. First find out which one you're on (`hostname`): run that one's part locally and `ssh <alias>` to the other two. Every machine has all three aliases in `~/.ssh/config` and the same `id_rsa` key, so any machine can reach any other.
+This skill may run on **any** of the three. First find out which one you're on (`hostname`): run that one's part locally and `ssh <alias>` to the other two. Every machine has all three aliases in `~/.ssh/config` and its own `~/.ssh/id_ed25519_fleet` key (used via `IdentitiesOnly`), authorized on all three, so any machine can reach any other. To revoke a machine, remove its `fleet-<hostname>` line from every `authorized_keys`.
 
 Passwordless `sudo -n` works on the Linux boxes.
+
+## Searching threads across machines
+
+T3's thread tools only see this machine. To find or read threads on all three, run:
+
+```sh
+~/skills/manage-fleet/fleet-threads.py "virga simulator"     # title/message search, last 30 days (--days N, --limit N)
+~/skills/manage-fleet/fleet-threads.py --days 7               # list recent threads per machine
+~/skills/manage-fleet/fleet-threads.py --show <thread id>     # read one thread's messages (--chars N per message)
+```
+
+It is read-only. Don't query the sqlite databases by hand.
 
 ## Rules
 
