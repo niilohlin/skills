@@ -15,8 +15,24 @@ hand.
 
 Work out how this repo deploys: read `.github/workflows/` (look for jobs
 triggered on push to the base branch), and any `deploy`/`helm`/`argocd`
-references. At Volumental, services usually build an image on merge, and
-ArgoCD deploys tags from the `helm-chart-values` GitOps repo.
+references. At Volumental, a merge or a GitHub release only builds an image;
+nothing is deployed until the tag lands in `helm-chart-values`. Deploy with
+the Cosmos MCP (service ids are in the service map in `~/work/CLAUDE.md`):
+
+1. `mcp__cosmos__get_deploy_state` to see the requested, running and newly
+   published tags.
+2. `mcp__cosmos__deploy` with the new tag. Staging deploys straight away;
+   production returns `pending_review` and a helm-chart-values PR that a
+   human must merge. Give the user that PR's URL.
+3. Poll `get_deploy_state` until the running tag is the new one and ArgoCD
+   reports Synced/Healthy. If it stays OutOfSync after the PR merged, tell
+   the user (it may need a manual Sync) instead of waiting it out.
+
+Never hand-write helm-chart-values PRs, and never start a rollout watcher
+before the deploy has been requested. If the Cosmos tools aren't available,
+stop and tell the user to add the MCP
+(`claude mcp add --transport http --scope user cosmos https://platform-api.volumental.dev/mcp`).
+If master has other people's unreleased PRs, ask before cutting a release.
 
 Once the new version is live, watch it for ~15 minutes (longer for
 low-traffic services) and compare against the baseline.

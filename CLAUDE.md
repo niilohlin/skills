@@ -1,3 +1,6 @@
+Work context (service map, prod access, Sentry), also needed in worktrees
+outside ~/work: @~/work/CLAUDE.md
+
 When referencing a GitHub PR, issue, or commit, always write the full URL. Never write just the number or a bare `owner/repo#123`.
 
 Username on my 2 other machines (dellburk, niils-omarchy) is niilohlin.

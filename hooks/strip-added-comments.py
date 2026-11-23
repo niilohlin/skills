@@ -376,7 +376,7 @@ def git_pass(state: Path, cwd: str | None, parser_for) -> list[tuple[str, int]]:
         mine = set(shas)
         for rel in sorted(files):
             path = repo / rel
-            if not path.is_file() or language_for(path) is None:
+            if not path.is_file() or language_for(path) is None or not strippable(path):
                 continue
             blame = git(repo, "blame", "--porcelain", "--", rel)
             if blame is None:
@@ -398,6 +398,17 @@ def git_pass(state: Path, cwd: str | None, parser_for) -> list[tuple[str, int]]:
     return touched
 
 
+SCRATCH_RE = re.compile(r"/claude-\d+/")
+
+
+def strippable(path: Path) -> bool:
+    """Only files in a git work tree: scratch scripts and caches are left alone."""
+    resolved = str(path.resolve())
+    if SCRATCH_RE.search(resolved) or resolved.startswith(str(Path.home() / ".cache") + "/"):
+        return False
+    return (git(path.parent, "rev-parse", "--is-inside-work-tree") or "").strip() == "true"
+
+
 def snapshot_pass(state: Path, parser_for) -> list[tuple[str, int]]:
     touched: list[tuple[str, int]] = []
     for marker in sorted(state.glob("*.path")):
@@ -405,7 +416,7 @@ def snapshot_pass(state: Path, parser_for) -> list[tuple[str, int]]:
         if not orig.exists():
             continue
         path = Path(marker.read_text(encoding="utf-8"))
-        if not path.is_file():
+        if not path.is_file() or not strippable(path):
             continue
         try:
             old_text = orig.read_text(encoding="utf-8")

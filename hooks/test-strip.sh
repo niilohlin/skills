@@ -4,7 +4,8 @@ set -u
 here=$(cd "$(dirname "$0")" && pwd)
 sid="test-strip-$$"
 repo=$(mktemp -d)
-trap 'rm -rf "$repo" "$HOME/.claude/comment-stripper/$sid"' EXIT
+loose=$(mktemp -d)
+trap 'rm -rf "$repo" "$loose" "$HOME/.claude/comment-stripper/$sid"' EXIT
 fail() { echo "FAIL: $1"; exit 1; }
 hook() { printf '{"session_id":"%s","tool_name":"Bash","cwd":"/","tool_input":{"command":"%s"}}' "$sid" "$1" | "$here/snapshot-edited-file.sh"; }
 
@@ -41,7 +42,10 @@ for f in f1 f2; do
   printf '{"session_id":"%s","tool_name":"Write","tool_input":{"file_path":"%s"}}' "$sid" "$repo/$f.py" | "$here/snapshot-edited-file.sh"
   printf '# new\nv = 1\n' >"$f.py"
 done
+printf '{"session_id":"%s","tool_name":"Write","tool_input":{"file_path":"%s"}}' "$sid" "$loose/bench.sh" | "$here/snapshot-edited-file.sh"
+printf '# scratch note\necho hi\n' >"$loose/bench.sh"
 printf '{"session_id":"%s","cwd":"/"}' "$sid" | "$here/run-stripper.sh" || fail "stop hook failed"
+[ "$(cat "$loose/bench.sh")" = "$(printf '# scratch note\necho hi')" ] || fail "stripped a file outside git: $(cat "$loose/bench.sh")"
 for f in f1 f2; do [ "$(cat $f.py)" = "v = 1" ] || fail "$f.py snapshot pass missed: $(cat $f.py)"; done
 [ ! -e "$HOME/.claude/comment-stripper/$sid" ] || fail "stop hook kept state"
 echo ok
