@@ -37,7 +37,18 @@ Record the reviewer's latest score. For Greptile run
 every unresolved Greptile thread as plain text. Don't scrape the HTML comment
 yourself.
 
-4. Wait, then repeat - If your harness has a PR-watch or notification tool, use it. Otherwise poll
+4. Wait, then repeat. To wait for Greptile, always use the shared poller:
+   `~/skills/babysit-pr/greptile-status.sh --wait <pr>`. Every waiter on the
+   machine registers its PR with one background poller, which fetches the
+   "Greptile Review" check run for all watched PRs in a single GraphQL call
+   every 30s, so parallel sessions don't each hit the API. It follows new
+   pushes to the PR, and when the review of the head completes (or the PR is
+   merged or closed) it prints the same status as above and exits 0. It gives
+   up after 30 minutes (`--timeout SECS`), or after 5 minutes if Greptile never
+   starts on the head, and then exits 2. Run it as a background Bash task and
+   pass its returned ID to `t3_background_wait` (or your harness's
+   equivalent). Don't write your own sleep loops or re-run the status script by
+   hand to poll. For CI, use your harness's PR-watch tool if it has one.
 
 ## Stop
 
