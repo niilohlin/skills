@@ -31,7 +31,7 @@ run_poller() {
     uniq=$(printf '%s\n' "${keys[@]}" | sort -u)
     while read -r key; do
       IFS=/ read -r o r n <<<"$key"
-      q+="p$i: repository(owner:\"$o\",name:\"$r\"){nameWithOwner pullRequest(number:$n){number state headRefOid commits(last:1){nodes{commit{checkSuites(first:20){nodes{app{slug} checkRuns(first:5,filterBy:{checkName:\"Greptile Review\"}){nodes{status conclusion startedAt}}}}}}}}} "
+      q+="p$i: repository(owner:\"$o\",name:\"$r\"){nameWithOwner pullRequest(number:$n){number state headRefOid commits(last:1){nodes{commit{checkSuites(first:20,filterBy:{checkName:\"Greptile Review\"}){nodes{app{slug} checkRuns(first:5,filterBy:{checkName:\"Greptile Review\"}){nodes{status conclusion startedAt}}}}}}}}} "
       i=$((i + 1))
     done <<<"$uniq"
     q+="}"
@@ -78,6 +78,7 @@ done
 
 read -r num url head <<<"$(gh pr view ${target:+"$target"} --json number,url,headRefOid --jq '"\(.number) \(.url) \(.headRefOid)"')"
 repo=$(sed -E 's#https://github.com/([^/]+/[^/]+)/pull/.*#\1#' <<<"$url")
+[ -n "$num" ] || { echo "greptile-status.sh: no PR found for '${target:-current branch}'" >&2; exit 1; }
 owner=${repo%/*} name=${repo#*/}
 state="unknown"
 
@@ -85,11 +86,11 @@ if [ "$wait" = 1 ]; then
   key="$repo/$num"
   watch="$dir/watch/${key//\//__}.$$"
   statefile="$dir/state/${key//\//__}"
-  trap 'rm -f "$watch"' EXIT
+  trap 'rm -f "$watch" "$watch.tmp"' EXIT
   start=$(date +%s) head_since=$start last_msg=""
   while :; do
     now=$(date +%s)
-    echo "$key $now" >"$watch"
+    echo "$key $now" >"$watch.tmp" && mv "$watch.tmp" "$watch"
     ensure_poller
     polled=0 shead="" state="waiting-for-poll"
     [ -f "$statefile" ] && read -r polled shead state <"$statefile"
@@ -118,8 +119,8 @@ else
       | if . == null then "none" else [.status, .conclusion] | map(select(. != null)) | join("-") end')
 fi
 
-summary=$(gh api "repos/$repo/issues/$num/comments" --paginate \
-  --jq '[.[] | select(.user.login | test("greptile")) | select(.body | contains("greptile_summary"))] | last // empty | "\(.updated_at)\n\(.body)"')
+summary=$(gh api "repos/$repo/issues/$num/comments?per_page=100" --paginate --slurp \
+  | jq -r '[add[] | select((.user.login // "") | test("greptile")) | select(.body | contains("greptile_summary"))] | last // empty | "\(.updated_at)\n\(.body)"')
 
 echo "PR: $url (head ${head:0:9})"
 echo "Greptile review of head: $state"
@@ -140,7 +141,7 @@ gh api graphql -F owner="$owner" -F name="$name" -F num="$num" -f query='
 query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){
   reviewThreads(first:100){nodes{isResolved isOutdated comments(first:1){nodes{author{login} path line body url}}}}}}}' \
   --jq '.data.repository.pullRequest.reviewThreads.nodes[]
-    | select(.isResolved | not) | .comments.nodes[0] | select(.author.login | test("greptile"))
+    | select(.isResolved | not) | .comments.nodes[0] | select((.author.login // "") | test("greptile"))
     | "- \(.path):\(.line // "?") \(.body | gsub("<[^>]+>"; "") | gsub("\\s+"; " ") | .[0:220])\n  \(.url)"' \
   | sed '/^$/d' | { grep . || echo "- none"; }
 
