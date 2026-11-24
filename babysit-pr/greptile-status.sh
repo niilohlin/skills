@@ -3,7 +3,7 @@ set -euo pipefail
 
 self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 dir="${XDG_CACHE_HOME:-$HOME/.cache}/greptile-poller"
-lock="$dir/poller.lock"
+lock="$dir/poller.flock"
 mkdir -p "$dir/watch" "$dir/state"
 
 usage() {
@@ -12,19 +12,11 @@ usage() {
 }
 
 poller_alive() {
-  local pid
-  pid=$(cat "$lock/pid" 2>/dev/null) && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+  perl -MFcntl=:flock -e 'open(my $l, ">>", $ARGV[0]) or exit 1; exit(flock($l, LOCK_EX | LOCK_NB) ? 1 : 0)' "$lock"
 }
 
 run_poller() {
   local interval=${GREPTILE_POLL_INTERVAL:-30} stale=120
-  if ! mkdir "$lock" 2>/dev/null; then
-    poller_alive && exit 0
-    rm -rf "$lock"
-    mkdir "$lock" 2>/dev/null || exit 0
-  fi
-  echo $$ >"$lock/pid"
-  trap 'rm -rf "$lock"' EXIT
   while :; do
     local now keys=() f key ts
     now=$(date +%s)
@@ -68,7 +60,8 @@ run_poller() {
 
 ensure_poller() {
   poller_alive && return
-  nohup "$self" --poller >>"$dir/poller.log" 2>&1 </dev/null &
+  nohup perl -MFcntl=:flock -e '$^F = 255; open(my $l, ">>", shift) or die "lock: $!"; flock($l, LOCK_EX | LOCK_NB) or exit 0; exec @ARGV or die "exec: $!"' \
+    "$lock" "$self" --poller >>"$dir/poller.log" 2>&1 </dev/null &
 }
 
 wait=0 timeout=1800 grace=300 target=""
