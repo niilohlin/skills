@@ -61,7 +61,7 @@ run_poller() {
 ensure_poller() {
   poller_alive && return
   nohup perl -MFcntl=:flock -e '$^F = 255; open(my $l, ">>", shift) or die "lock: $!"; flock($l, LOCK_EX | LOCK_NB) or exit 0; exec @ARGV or die "exec: $!"' \
-    "$lock" "$self" --poller >>"$dir/poller.log" 2>&1 </dev/null &
+    "$lock" bash "$self" --poller >>"$dir/poller.log" 2>&1 </dev/null &
 }
 
 wait=0 timeout=1800 grace=300 target=""
