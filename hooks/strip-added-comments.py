@@ -90,7 +90,7 @@ _KEEP = [
     r"\bSPDX-License-Identifier\b",
     r"\bcopyright\b",
     r"\blicen[cs]ed under\b",
-    r"@(jsx|jsxImportSource|jsxRuntime|flow|license|preserve|generated)\b",
+    r"@(jsx|jsxImportSource|jsxRuntime|flow|license|preserve|generated|internal|deprecated)\b",
     r"^\s*/\*\s*(global|eslint|exported)\b",
     r"<reference\s",
     r"\bsourceMappingURL\b",
@@ -154,6 +154,37 @@ def previous_comments(old_text: str, parser) -> Counter:
         normalize(src[n.start_byte:n.end_byte].decode("utf-8", "replace"))
         for n in comment_nodes(root)
     )
+
+
+def _go_exported(name: str) -> bool:
+    name = name.lstrip("*").rsplit(".", 1)[-1]
+    return name[:1].isupper()
+
+
+def go_exported_doc(last, src: bytes) -> bool:
+    """True when the comment block ending at `last` documents an exported Go type or field.
+
+    visa generates OpenAPI specs (and privacy.yaml) from these, so stripping them breaks
+    the generated files.
+    """
+    nxt = last.next_named_sibling
+    if nxt is None or nxt.start_point[0] != last.end_point[0] + 1:
+        return False
+    text = lambda n: src[n.start_byte:n.end_byte].decode("utf-8", "replace")
+    if nxt.type == "type_declaration":
+        nxt = next((c for c in nxt.named_children if c.type in ("type_spec", "type_alias")), None)
+        if nxt is None:
+            return False
+    if nxt.type in ("type_spec", "type_alias"):
+        name = nxt.child_by_field_name("name")
+        return name is not None and _go_exported(text(name))
+    if nxt.type == "field_declaration":
+        names = [c for c in nxt.named_children if c.type == "field_identifier"]
+        if names:
+            return any(_go_exported(text(c)) for c in names)
+        typ = nxt.child_by_field_name("type")
+        return typ is not None and _go_exported(text(typ))
+    return False
 
 
 def error_count(root) -> int:
@@ -238,6 +269,8 @@ def strip_file(path: Path, old_text: str, parser_for, only_rows: set[int] | None
     for block in blocks:
         rows = {r for n, _ in block for r in range(n.start_point[0], n.end_point[0] + 1)}
         if not rows & fresh:
+            continue
+        if lang == "go" and block[-1][1] and go_exported_doc(block[-1][0], src):
             continue
         texts = {
             id(n): src[n.start_byte:n.end_byte].decode("utf-8", "replace") for n, _ in block

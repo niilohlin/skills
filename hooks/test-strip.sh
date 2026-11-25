@@ -13,6 +13,8 @@ cd "$repo" && git init -q && git config user.email me@example.com && git config 
 printf 'x = 1  # was here\n' >a.py
 printf '# doc one\n# doc two\ndef f():\n    pass\n' >d.py
 printf '# untouched\nx = 1\n' >e.py
+printf 'package p\n\ntype T struct {\n\tName string\n\thidden int\n\tBase\n}\n\ntype u int\n\nfunc F() {}\n' >g.go
+printf 'export const a = 1;\nexport const b = 2;\nexport const c = 3;\n' >h.ts
 git add . && git commit -qm base
 sleep 1
 
@@ -25,6 +27,8 @@ printf 'x = 2  # was here\n# mine\nz = 3  # mine too\n' >a.py
 printf '# /// script\n# dependencies = ["x"]\n# ///\n# mine\nprint(1)\n' >c.py
 printf '# doc one\n# doc two changed\ndef f():\n    pass\n' >d.py
 printf '# untouched\nx = 2\n' >e.py
+printf 'package p\n\n// T doc\ntype T struct {\n\t// Name doc\n\tName string\n\t// hidden doc\n\thidden int\n\t// Base doc\n\tBase\n}\n\n// u doc\ntype u int\n\n// F doc\nfunc F() {}\n' >g.go
+printf '/** @internal */\nexport const a = 1;\n/** @deprecated use c */\nexport const b = 2;\n/** plain */\nexport const c = 3;\n' >h.ts
 git add . && git commit -qm mine
 
 hook "cd $repo && git push" 2>/dev/null && fail "gate let comments through"
@@ -32,6 +36,8 @@ hook "cd $repo && git push" 2>/dev/null && fail "gate let comments through"
 [ "$(cat b.py)" = "$(printf '# theirs\ny = 2')" ] || fail "b.py: $(cat b.py)"
 [ "$(cat d.py)" = "$(printf 'def f():\n    pass')" ] || fail "d.py: edited block not removed whole: $(cat d.py)"
 [ "$(cat e.py)" = "$(printf '# untouched\nx = 2')" ] || fail "e.py: $(cat e.py)"
+[ "$(cat g.go)" = "$(printf 'package p\n\n// T doc\ntype T struct {\n\t// Name doc\n\tName string\n\thidden int\n\t// Base doc\n\tBase\n}\n\ntype u int\n\nfunc F() {}')" ] || fail "g.go: $(cat g.go)"
+[ "$(cat h.ts)" = "$(printf '/** @internal */\nexport const a = 1;\n/** @deprecated use c */\nexport const b = 2;\nexport const c = 3;')" ] || fail "h.ts: $(cat h.ts)"
 [ "$(cat c.py)" = "$(printf '# /// script\n# dependencies = ["x"]\n# ///\nprint(1)')" ] || fail "c.py: $(cat c.py)"
 
 git commit -qam stripped
